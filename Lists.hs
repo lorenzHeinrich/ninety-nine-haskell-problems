@@ -418,7 +418,7 @@ group3 xs = addThrees (combinations 4 xs) xs
         addThreesToFour :: Eq a => [a] -> [[a]] -> [a] -> [[[a]]]
         addThreesToFour _ [] xs                = []
         addThreesToFour four (three:threes) xs = [rest four three xs, three, four] : addThreesToFour four threes xs
-            where 
+            where
                 rest :: Eq a => [a] -> [a] -> [a] -> [a]
                 rest four three xs = filtered four (filtered three xs)
 
@@ -441,17 +441,17 @@ group3 xs = addThrees (combinations 4 xs) xs
 -- [[["aldo","beat"],["carla","david"],["evi","flip","gary","hugo","ida"]],...]
 -- (altogether 756 solutions)
 
-group :: Eq a => [Int] -> [a] -> [[[a]]] 
+group :: Eq a => [Int] -> [a] -> [[[a]]]
 group [first, second, third] xs
-    | length xs == first + second + third = 
+    | length xs == first + second + third =
         concatMap (\f -> addToFirst f (combinations second (filtered f xs)) xs) (combinations first xs)
     | otherwise = error "sum of group sizes must match list length"
     where
         addToFirst :: Eq a => [a] -> [[a]] -> [a] -> [[[a]]]
         addToFirst _ [] _           = []
-        addToFirst first (second:seconds) xs = 
+        addToFirst first (second:seconds) xs =
             [first, second, rest first second xs] : addToFirst first seconds xs
-            where 
+            where
                 rest first second xs = filtered first (filtered second xs)
 
         -- Überprüft, ob ein Element in der Liste ist
@@ -463,3 +463,64 @@ group [first, second, third] xs
         filtered :: Eq a => [a] -> [a] -> [a]
         filtered xs = filter (not . isIn xs)
 
+-- Problem 28
+-- Sorting a list of lists according to length of sublists.Solutions
+
+-- a) We suppose that a list contains elements that are lists themselves.
+-- The objective is to sort the elements of this list according to their length.
+-- E.g. short lists first, longer lists later, or vice versa.
+-- Example:
+
+-- * (lsort '((a b c) (d e) (f g h) (d e) (i j k l) (m n) (o)))
+-- ((O) (D E) (D E) (M N) (A B C) (F G H) (I J K L))
+-- Example in Haskell:
+
+-- λ> lsort ["abc","de","fgh","de","ijkl","mn","o"]
+-- ["o","de","de","mn","abc","fgh","ijkl"]
+lsort :: [[a]] -> [[a]]
+lsort []     = []
+lsort (a:as) = insert a (lsort as)
+    where
+        insert :: [a] -> [[a]] -> [[a]]
+        insert a []     = [a]
+        insert a (b:as) = if length a < length b then a : b : as else b : insert a as
+
+-- b) Again, we suppose that a list contains elements that are lists themselves.
+-- But this time the objective is to sort the elements of this list according to their length frequency;
+-- i.e., in the default, where sorting is done ascendingly, lists with rare lengths are placed first, others with a more frequent length come later.
+
+-- Example:
+-- * (lfsort '((a b c) (d e) (f g h) (d e) (i j k l) (m n) (o)))
+-- ((i j k l) (o) (a b c) (f g h) (d e) (d e) (m n))
+
+-- Example in Haskell:
+-- λ> lfsort ["abc", "de", "fgh", "de", "ijkl", "mn", "o"]
+-- ["ijkl","o","abc","fgh","de","de","mn"]
+
+lfsort :: [[a]] -> [[a]]
+lfsort = snds . fsort . flist
+    where
+        flist :: [[a]] -> [(Int, [a])]
+        flist []     = []
+        flist (x:xs) = 
+            let updatedflist = updatef (length x) (flist xs)
+            in (freq x updatedflist, x) : updatedflist
+            where
+                freq :: [a] -> [(Int, [a])] -> Int
+                freq x [] = 0
+                freq x ((f, y):fl) = if length x == length y then f else freq x fl
+
+                updatef :: Int -> [(Int, [a])] -> [(Int, [a])]
+                updatef l [] = []
+                updatef l ((f, x):xs) = (if length x == l then (f + 1, x) else (f, x)) : updatef l xs
+
+        fsort :: [(Int, [a])] -> [(Int, [a])]
+        fsort []                     = []
+        fsort (a:as)                 = insert a (fsort as)
+            where
+            insert a []                     = [a]
+            insert a@(f1, _) (b@(f2, _):as) = if f1 < f2 then a : b : as else b : insert a as
+
+        snds :: [(Int, [a])] -> [[a]]
+        snds []          = []
+        snds ((_, a):as) = a : snds as
